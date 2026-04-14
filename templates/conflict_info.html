@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交通冲突分析</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            margin-top: 30px;
+            margin-bottom: 30px;
+        }
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        .header h1 {
+            color: #333;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #666;
+            font-size: 18px;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            margin-bottom: 30px;
+        }
+        .card:hover {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        .card-header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 15px 15px 0 0;
+        }
+        .card-header h3 {
+            margin: 0;
+            font-weight: 600;
+        }
+        .card-body {
+            padding: 2.5rem;
+        }
+        .btn {
+            border-radius: 50px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            border: none;
+            color: white;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+        }
+        .btn-info {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            border: none;
+            color: white;
+        }
+        .btn-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            text-align: center;
+            padding: 12px;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+        }
+        .report-container {
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .heatmap-container {
+            margin-top: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        img:hover {
+            transform: scale(1.02);
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .row {
+            margin-bottom: 30px;
+        }
+        .action-buttons {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .alert {
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .alert-info {
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>交通冲突分析</h1>
+            <p>详细的交通冲突分析和安全评价报告</p>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="action-buttons">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary me-3">
+                <i class="fas fa-home"></i> 返回主页
+            </a>
+            <a href="{{ url_for('image_detection') }}" class="btn btn-primary me-3">
+                <i class="fas fa-image"></i> 图片检测
+            </a>
+            {% if video_filename %}
+            <a href="{{ url_for('video_detection') }}" class="btn btn-info me-3">
+                <i class="fas fa-video"></i> 返回视频检测
+            </a>
+            <a href="{{ url_for('video_detection') }}" class="btn btn-success">
+                <i class="fas fa-redo"></i> 新视频检测
+            </a>
+            {% else %}
+            <a href="{{ url_for('video_detection') }}" class="btn btn-info me-3">
+                <i class="fas fa-video"></i> 开始视频检测
+            </a>
+            <a href="#" class="btn btn-success">
+                <i class="fas fa-question-circle"></i> 帮助文档
+            </a>
+            {% endif %}
+        </div>
+        
+        <!-- 安全评价报告 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-shield-alt"></i> 安全评价报告</h3>
+            </div>
+            <div class="card-body">
+                {% if report %}
+                <div class="report-container">
+                    {{ report }}
+                </div>
+                {% else %}
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle"></i> 暂无安全评价报告，请先进行视频检测
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 冲突热力图 -->
+        {% if heatmap_exists %}
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-map"></i> 冲突热力图</h3>
+            </div>
+            <div class="card-body heatmap-container">
+                <img src="{{ url_for('send_output', path='conflict_heatmap.png') }}" alt="冲突热力图">
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- 交通流量和冲突分析图表 -->
+        <div class="row">
+            <!-- 交通流量统计 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-car"></i> 交通流量统计</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="flowChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 冲突类型分布 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-pie"></i> 冲突类型分布</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="conflictTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- 速度分布 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-tachometer-alt"></i> 速度分布</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="speedChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 时间分布 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-clock"></i> 冲突时间分布</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="timeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 冲突数据 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> 冲突数据</h3>
+            </div>
+            <div class="card-body">
+                {% if conflicts %}
+                <div class="table-container">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>帧号</th>
+                                <th>时间</th>
+                                <th>目标1 ID</th>
+                                <th>目标2 ID</th>
+                                <th>目标1类型</th>
+                                <th>目标2类型</th>
+                                <th>距离(m)</th>
+                                <th>TTC(s)</th>
+                                <th>PET(s)</th>
+                                <th>冲突类型</th>
+                                <th>风险等级</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for conflict in conflicts %}
+                            <tr>
+                                <td>{{ conflict['frame'] }}</td>
+                                <td>{{ conflict['time'] }}</td>
+                                <td>{{ conflict['id1'] }}</td>
+                                <td>{{ conflict['id2'] }}</td>
+                                <td>{{ conflict['type1'] }}</td>
+                                <td>{{ conflict['type2'] }}</td>
+                                <td>{{ conflict['distance(m)'] }}</td>
+                                <td>{{ conflict['TTC(s)'] }}</td>
+                                <td>{{ conflict['PET(s)'] }}</td>
+                                <td>{{ conflict['conflict_type'] }}</td>
+                                <td>{{ conflict['risk_level'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle"></i> 暂无冲突数据
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 轨迹数据 -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-route"></i> 轨迹数据</h3>
+            </div>
+            <div class="card-body">
+                {% if trajectories %}
+                <div class="table-container">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>轨迹ID</th>
+                                <th>帧号</th>
+                                <th>时间(s)</th>
+                                <th>X坐标(px)</th>
+                                <th>Y坐标(px)</th>
+                                <th>类型</th>
+                                <th>置信度</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for trajectory in trajectories[:100] %} <!-- 只显示前100条 -->
+                            <tr>
+                                <td>{{ trajectory['track_id'] }}</td>
+                                <td>{{ trajectory['frame'] }}</td>
+                                <td>{{ trajectory['time(s)'] }}</td>
+                                <td>{{ trajectory['x(px)'] }}</td>
+                                <td>{{ trajectory['y(px)'] }}</td>
+                                <td>{{ trajectory['class'] }}</td>
+                                <td>{{ trajectory['conf'] }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% if trajectories|length > 100 %}
+                            <tr>
+                                <td colspan="7" class="text-center">...</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle"></i> 暂无轨迹数据
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 底部按钮 -->
+        <div class="action-buttons">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary me-3">
+                <i class="fas fa-home"></i> 返回主页
+            </a>
+            <a href="{{ url_for('image_detection') }}" class="btn btn-primary me-3">
+                <i class="fas fa-image"></i> 图片检测
+            </a>
+            <a href="{{ url_for('video_detection') }}" class="btn btn-info me-3">
+                <i class="fas fa-video"></i> 视频检测
+            </a>
+            <a href="#" class="btn btn-success">
+                <i class="fas fa-question-circle"></i> 帮助文档
+            </a>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 交通流量统计图表
+        const flowCtx = document.getElementById('flowChart').getContext('2d');
+        const flowChart = new Chart(flowCtx, {
+            type: 'bar',
+            data: {
+                labels: ['机动车', '非机动车', '总计'],
+                datasets: [{
+                    label: '交通流量（辆）',
+                    data: [0, 0, 0],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(75, 192, 192, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // 冲突类型分布图表
+        const conflictTypeCtx = document.getElementById('conflictTypeChart').getContext('2d');
+        const conflictTypeChart = new Chart(conflictTypeCtx, {
+            type: 'pie',
+            data: {
+                labels: ['直行-横穿冲突', '同向速度差冲突', '直角交叉冲突', '其他'],
+                datasets: [{
+                    data: [1, 1, 1, 1],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(75, 192, 192, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // 速度分布图表
+        const speedCtx = document.getElementById('speedChart').getContext('2d');
+        const speedChart = new Chart(speedCtx, {
+            type: 'bar',
+            data: {
+                labels: ['机动车', '非机动车'],
+                datasets: [{
+                    label: '平均速度（km/h）',
+                    data: [0, 0],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 99, 132, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // 时间分布图表
+        const timeCtx = document.getElementById('timeChart').getContext('2d');
+        const timeChart = new Chart(timeCtx, {
+            type: 'line',
+            data: {
+                labels: ['0-1min', '1-2min', '2-3min', '3-4min', '4-5min'],
+                datasets: [{
+                    label: '冲突次数',
+                    data: [0, 0, 0, 0, 0],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // 加载实际数据
+        fetch('/output/traffic_flow.csv')
+            .then(response => response.text())
+            .then(data => {
+                const rows = data.split('\n');
+                if (rows.length > 1) {
+                    let vehicleCount = 0;
+                    let nonVehicleCount = 0;
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i].split(',');
+                        if (row.length >= 4) {
+                            vehicleCount += parseInt(row[1]) || 0;
+                            nonVehicleCount += parseInt(row[2]) || 0;
+                        }
+                    }
+                    flowChart.data.datasets[0].data = [vehicleCount, nonVehicleCount, vehicleCount + nonVehicleCount];
+                    flowChart.update();
+                }
+            })
+            .catch(err => console.error('Error loading traffic flow data:', err));
+
+        fetch('/output/conflicts.csv')
+            .then(response => response.text())
+            .then(data => {
+                const rows = data.split('\n');
+                if (rows.length > 1) {
+                    const conflictTypes = {};
+                    const timeDistribution = [0, 0, 0, 0, 0];
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i].split(',');
+                        if (row.length >= 12) {
+                            const conflictType = row[9];
+                            conflictTypes[conflictType] = (conflictTypes[conflictType] || 0) + 1;
+                            
+                            const time = parseFloat(row[1]) || 0;
+                            const minuteIndex = Math.min(Math.floor(time / 60), 4);
+                            timeDistribution[minuteIndex]++;
+                        }
+                    }
+                    
+                    // 更新冲突类型图表
+                    conflictTypeChart.data.labels = Object.keys(conflictTypes);
+                    conflictTypeChart.data.datasets[0].data = Object.values(conflictTypes);
+                    conflictTypeChart.update();
+                    
+                    // 更新时间分布图表
+                    timeChart.data.datasets[0].data = timeDistribution;
+                    timeChart.update();
+                }
+            })
+            .catch(err => console.error('Error loading conflict data:', err));
+
+        fetch('/output/speed_stats.csv')
+            .then(response => response.text())
+            .then(data => {
+                const rows = data.split('\n');
+                if (rows.length > 1) {
+                    let vehicleSpeed = 0;
+                    let nonVehicleSpeed = 0;
+                    let vehicleCount = 0;
+                    let nonVehicleCount = 0;
+                    
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i].split(',');
+                        if (row.length >= 4) {
+                            const className = row[0].trim();
+                            const speed = parseFloat(row[1]) || 0;
+                            if (className === 'motor') {
+                                vehicleSpeed += speed;
+                                vehicleCount++;
+                            } else if (className === 'non_motor') {
+                                nonVehicleSpeed += speed;
+                                nonVehicleCount++;
+                            }
+                        }
+                    }
+                    
+                    const avgVehicleSpeed = vehicleCount > 0 ? vehicleSpeed / vehicleCount : 0;
+                    const avgNonVehicleSpeed = nonVehicleCount > 0 ? nonVehicleSpeed / nonVehicleCount : 0;
+                    
+                    speedChart.data.datasets[0].data = [avgVehicleSpeed, avgNonVehicleSpeed];
+                    speedChart.update();
+                }
+            })
+            .catch(err => console.error('Error loading speed data:', err));
+    </script>
+</body>
+</html>

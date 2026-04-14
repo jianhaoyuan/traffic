@@ -1,0 +1,16 @@
+# 数据集根目录
+path: D:/code/dataset
+
+# 训练集图片路径
+train: images/train
+
+# 验证集图片路径
+val: images/val
+
+# 类别数量
+nc: 2
+
+# 类别名称（编号从 0 开始，和标注时的顺序对应）
+names:
+  0: motor
+  1: non_motor
